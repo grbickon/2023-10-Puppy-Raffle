@@ -12,7 +12,7 @@ clean  :; forge clean
 # Remove modules
 remove :; rm -rf .gitmodules && rm -rf .git/modules/* && rm -rf lib && touch .gitmodules && git add . && git commit -m "modules"
 
-install :; forge install foundry-rs/forge-std --no-commit && forge install openzeppelin/openzeppelin-contracts@v3.4.0 --no-commit && forge install Brechtpd/base64 --no-commit 
+install :; forge install foundry-rs/forge-std && forge install openzeppelin/openzeppelin-contracts@v3.4.0 && forge install Brechtpd/base64
 
 # Update Dependencies
 update:; forge update
@@ -26,3 +26,5 @@ snapshot :; forge snapshot
 format :; forge fmt
 
 anvil :; anvil -m 'test test test test test test test test test test test junk' --steps-tracing --block-time 1
+
+foundry :; curl -L https://foundry.paradigm.xyz | bash
